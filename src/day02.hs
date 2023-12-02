@@ -1,4 +1,5 @@
 import Data.Char
+import Data.Either
 import Data.List
 import Text.Parsec
 import Text.Parsec.String
@@ -37,11 +38,7 @@ parseGame = do
   n <- nat
   string ": "
   rs <- parseRound `sepBy` string "; "
-  char '\n'
   return (n, rs)
-
-parseInput :: Parser [Game]
-parseInput = many parseGame
 
 power :: Game -> Int
 power (_, rs) = r * g * b
@@ -54,9 +51,7 @@ part1 = sum . map fst . filter (all possible . snd)
 part2 = sum . map power
 
 main = do
-  text <- getContents
-  case runParser parseInput () "input" text of
-    Left e -> error (show e)
-    Right g -> do
-      putStrLn $ show $ part1 g
-      putStrLn $ show $ part2 g
+  ls <- lines <$> getContents
+  let input = map (fromRight (error "parse error") . parse parseGame "input") ls
+  putStrLn $ show $ part1 input
+  putStrLn $ show $ part2 input
