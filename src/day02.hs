@@ -1,3 +1,5 @@
+import Data.Char
+import Data.List
 import Text.Parsec
 import Text.Parsec.String
 
@@ -6,34 +8,33 @@ type Round = (Int, Int, Int)  -- (red, green, blue)
 type Game = (Int, [Round])    -- (id, rounds)
 
 parseColor :: Parser Color
-parseColor = choice [string "red" >> return Red,
+parseColor = choice [string "red"   >> return Red,
                      string "green" >> return Green,
-                     string "blue" >> return Blue]
+                     string "blue"  >> return Blue]
+
+nat :: Parser Int
+nat = foldl' (\a i -> 10 * a + digitToInt i) 0 <$> many1 digit
 
 parseCount :: Parser (Color, Int)
 parseCount = do
-  n <- read <$> many1 digit
+  n <- nat
   string " "
   c <- parseColor
   return (c, n)
 
-lookupAll :: Eq a => a -> [(a, b)] -> [b]
-lookupAll k [] = []
-lookupAll k ((k', v) : xs) | k == k' = v : lookupAll k xs
-lookupAll k (_ : xs) = lookupAll k xs
-
 parseRound :: Parser Round
 parseRound = do
   ncs <- parseCount `sepBy` string ", "
-  let red   = sum (lookupAll Red ncs)
-      green = sum (lookupAll Green ncs)
-      blue  = sum (lookupAll Blue ncs)
-  return (red, green, blue)
+  let totals x [] = x
+      totals (r, g, b) ((Red, x)   : xs) = totals (r + x, g, b) xs
+      totals (r, g, b) ((Green, x) : xs) = totals (r, g + x, b) xs
+      totals (r, g, b) ((Blue, x)  : xs) = totals (r, g, b + x) xs
+  return (totals (0, 0, 0) ncs)
 
 parseGame :: Parser Game
 parseGame = do
   string "Game "
-  n <- read <$> many1 digit
+  n <- nat
   string ": "
   rs <- parseRound `sepBy` string "; "
   char '\n'
@@ -44,7 +45,7 @@ parseInput = many parseGame
 
 power :: Game -> Int
 power (_, rs) = r * g * b
-  where (r, g, b) = foldr rmax (0, 0, 0) rs
+  where (r, g, b) = foldl' rmax (0, 0, 0) rs
         rmax (r, g, b) (r', g', b') = (max r r', max g g', max b b')
 
 part1, part2 :: [Game] -> Int
