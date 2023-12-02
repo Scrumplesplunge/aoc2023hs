@@ -4,33 +4,24 @@ import Data.List
 import Text.Parsec
 import Text.Parsec.String
 
-data Color = Red | Green | Blue deriving Eq
-type Round = (Int, Int, Int)  -- (red, green, blue)
-type Game = (Int, [Round])    -- (id, rounds)
-
-parseColor :: Parser Color
-parseColor = choice [string "red"   >> return Red,
-                     string "green" >> return Green,
-                     string "blue"  >> return Blue]
+data Round = Round !Int !Int !Int  -- (red, green, blue)
+type Game = (Int, [Round])         -- (id, rounds)
 
 nat :: Parser Int
 nat = foldl' (\a i -> 10 * a + digitToInt i) 0 <$> many1 digit
 
-parseCount :: Parser (Color, Int)
+parseCount :: Parser (Round -> Round)
 parseCount = do
-  n <- nat
+  x <- nat
   string " "
-  c <- parseColor
-  return (c, n)
+  choice [string "red"   >> return (\(Round r g b) -> (Round (r + x) g  b)),
+          string "green" >> return (\(Round r g b) -> (Round r (g + x) b)),
+          string "blue"  >> return (\(Round r g b) -> (Round r g (b + x)))]
 
 parseRound :: Parser Round
 parseRound = do
   ncs <- parseCount `sepBy` string ", "
-  let totals x [] = x
-      totals (r, g, b) ((Red, x)   : xs) = totals (r + x, g, b) xs
-      totals (r, g, b) ((Green, x) : xs) = totals (r, g + x, b) xs
-      totals (r, g, b) ((Blue, x)  : xs) = totals (r, g, b + x) xs
-  return (totals (0, 0, 0) ncs)
+  return (foldl' (\x f -> f x) (Round 0 0 0) ncs)
 
 parseGame :: Parser Game
 parseGame = do
@@ -40,18 +31,22 @@ parseGame = do
   rs <- parseRound `sepBy` string "; "
   return (n, rs)
 
-power :: Game -> Int
-power (_, rs) = r * g * b
-  where (r, g, b) = foldl' rmax (0, 0, 0) rs
-        rmax (r, g, b) (r', g', b') = (max r r', max g g', max b b')
+part1, part2 :: Game -> Int
+part1 (id, rs) = if all possible rs then id else 0
+  where possible (Round r g b) = r <= 12 && g <= 13 && b <= 14
+part2 (_, rs) = r * g * b
+  where Round r g b = foldl' rmax (Round 0 0 0) rs
+        rmax (Round r g b) (Round r' g' b') =
+          Round (max r r') (max g g') (max b b')
 
-part1, part2 :: [Game] -> Int
-part1 = sum . map fst . filter (all possible . snd)
-  where possible (r, g, b) = r <= 12 && g <= 13 && b <= 14
-part2 = sum . map power
+data Sums = Sums !Int !Int
+solve = go (Sums 0 0)
+  where go s [] = s
+        go (Sums p1 p2) (g : gs) = go (Sums (p1 + part1 g) (p2 + part2 g)) gs
 
 main = do
   ls <- lines <$> getContents
   let input = map (fromRight (error "parse error") . parse parseGame "input") ls
-  putStrLn $ show $ part1 input
-  putStrLn $ show $ part2 input
+      (Sums p1 p2) = solve input
+  putStrLn $ show $ p1
+  putStrLn $ show $ p2
