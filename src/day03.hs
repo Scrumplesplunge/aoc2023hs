@@ -7,7 +7,7 @@ import Data.List
 expandX :: (Ord a, Bounded a) => [a] -> [a]
 expandX = go . (minBound :)
   where go [_] = []
-        go xs = maximum (take 3 xs) : go (tail xs)
+        go xs@(_ : xs') = maximum (take 3 xs) : go xs'
 expand :: (Ord a, Bounded a) => [[a]] -> [[a]]
 expand = transpose . map expandX . transpose . map expandX
 
