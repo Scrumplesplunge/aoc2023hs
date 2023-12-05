@@ -1,4 +1,3 @@
-import Debug.Trace
 import Data.Char
 import Data.List
 
@@ -42,23 +41,16 @@ lookupRange ((d, s, n) : ms) (ro, rn) | s <= ro && ro < s + n =
     in (start - s + d, end - start) : lookupRange ms (end, ro + rn - end)
 -- Case where the end of the input range is inside a map range.
 lookupRange ((d, s, n) : ms) (ro, rn) | s < ro + rn && ro + rn <= s + n =
-    let ro' = max s ro            -- Actual overlap start.
-        rn' = ro + rn - ro'       -- Actual overlap size.
-    in (ro' - s + d, rn') : lookupRange ms (ro, ro' - ro)
+    let start = max s ro
+        end = ro + rn
+    in (start - s + d, end - start) : lookupRange ms (ro, start - ro)
 -- Case where the range does not overlap with this map entry.
 lookupRange (_ : ms) (ro, rn) = lookupRange ms (ro, rn)
 lookupRange [] (ro, rn) = [(ro, rn)]
 
-debug ranges = show n ++ " in " ++ show ranges
-  where n = sum $ map snd ranges
-        min = minimum $ map fst ranges
-        max = maximum $ map (\(o, n) -> o + n) ranges
-
--- 63651375 too high
 part2 :: Input -> Int
 part2 (ss, ms) = minimum $ map fst $ foldl mapRanges (makeSeedRange ss) ms
-  where mapRanges sr m = let x = concat $ map (lookupRange m) sr
-                         in trace (debug sr ++ " -> " ++ debug x) x
+  where mapRanges sr m = concat $ map (lookupRange m) sr
         makeSeedRange (o : n : ss) = (o, n) : makeSeedRange ss
         makeSeedRange [] = []
 
