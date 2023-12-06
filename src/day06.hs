@@ -1,16 +1,13 @@
-import Data.List
-
 parse :: String -> ([String], [String])
 parse = (\[ts, ds] -> (ts, ds)) . map (tail . words) . lines
 
 -- Integer square root.
 isqrt :: Integer -> Integer
 isqrt x = go 1 x
-  where go a b = let m = (a + b) `div` 2
-                     m2 = m * m
-                 in if a == m then a
-                    else if m2 <= x then go m b
-                    else go a m
+  where go a b = let m = (a + b) `div` 2 in
+                 if a == m then a
+                 else if m * m <= x then go m b
+                 else go a m
 
 -- For a race of length t ms where we held the button for s ms, the distance
 -- we travel is x = (t - s) * s = ts - s^2. So, the range where we beat the
