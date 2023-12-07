@@ -13,7 +13,7 @@ value 'T' = 10
 value n = digitToInt n
 
 handType :: Hand -> Int
-handType cs = case counts of
+handType cs = case sort $ map length $ group $ sort cs of
     [5] -> 7
     [1, 4] -> 6
     [2, 3] -> 5
@@ -21,8 +21,6 @@ handType cs = case counts of
     [1, 2, 2] -> 3
     [1, 1, 1, 2] -> 2
     [1, 1, 1, 1, 1] -> 1
-    _ -> error ("Bad hand: " ++ show cs ++ " -> " ++ show counts)
-  where counts = (sort . map length . group . sort) cs
 
 handView cs = (handType cs, map value cs)
 
@@ -34,20 +32,18 @@ part1 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
         sortOn (handView . fst)
 
 options :: Hand -> [Hand]
-options cs = if jokers then map withJokerAs "23456789TQKA" else [cs]
-  where jokers = any (== 'J') cs
+options cs = if null js then [cs]
+             else if null vs then ["AAAAA"]
+             else map withJokerAs (nub vs)
+  where (js, vs) = partition (== 'J') cs
         withJokerAs x = map (\c -> if c == 'J' then x else c) cs
 
 bestType :: Hand -> Int
 bestType = maximum . map handType . options
 
 value2 :: Char -> Int
-value2 'A' = 14
-value2 'K' = 13
-value2 'Q' = 12
 value2 'J' = 1
-value2 'T' = 10
-value2 n = digitToInt n
+value2 x = value x
 
 handView2 cs = (bestType cs, map value2 cs)
 
