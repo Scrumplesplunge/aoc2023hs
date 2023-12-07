@@ -34,13 +34,9 @@ part1 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
         sortOn (handView . fst)
 
 options :: Hand -> [Hand]
-options [] = return []
-options (c : cs) = do
-  c <- case c of
-    'J' -> "23456789TQKA"
-    _ -> [c]
-  cs <- options cs
-  return (c : cs)
+options cs = if jokers then map withJokerAs "23456789TQKA" else [cs]
+  where jokers = any (== 'J') cs
+        withJokerAs x = map (\c -> if c == 'J' then x else c) cs
 
 bestType :: Hand -> Int
 bestType = maximum . map handType . options
