@@ -1,62 +1,62 @@
 import Data.List
-import Data.Char
 import Data.Function
 
-type Hand = String
+data Card = Joker | Two | Three | Four | Five | Six | Seven | Eight | Nine
+          | Ten | Jack | Queen | King | Ace deriving (Eq, Ord, Show)
+data Hand = HighCard | OnePair | TwoPair | ThreeOfAKind | FullHouse
+          | FourOfAKind | FiveOfAKind deriving (Eq, Ord, Show)
 
-value :: Char -> Int
-value 'A' = 14
-value 'K' = 13
-value 'Q' = 12
-value 'J' = 11
-value 'T' = 10
-value n = digitToInt n
-
-handType :: Hand -> Int
+handType :: [Card] -> Hand
 handType cs = case sort $ map length $ group $ sort cs of
-    [5] -> 7
-    [1, 4] -> 6
-    [2, 3] -> 5
-    [1, 1, 3] -> 4
-    [1, 2, 2] -> 3
-    [1, 1, 1, 2] -> 2
-    [1, 1, 1, 1, 1] -> 1
+    [5] -> FiveOfAKind
+    [1, 4] -> FourOfAKind
+    [2, 3] -> FullHouse
+    [1, 1, 3] -> ThreeOfAKind
+    [1, 2, 2] -> TwoPair
+    [1, 1, 1, 2] -> OnePair
+    [1, 1, 1, 1, 1] -> HighCard
 
-handView cs = (handType cs, map value cs)
+parse :: String -> [(Hand, [Card], Int)]
+parse = map (parseHand . words) . lines
+  where parseHand [h, b] = let h' = map card h in (handType h', h', read b)
+        card '2' = Two
+        card '3' = Three
+        card '4' = Four
+        card '5' = Five
+        card '6' = Six
+        card '7' = Seven
+        card '8' = Eight
+        card '9' = Nine
+        card 'T' = Ten
+        card 'J' = Jack
+        card 'Q' = Queen
+        card 'K' = King
+        card 'A' = Ace
 
-parse :: String -> [(Hand, Int)]
-parse = map ((\[hand, bet] -> (hand, read bet)) . words) . lines
+winnings :: [(Hand, [Card], Int)] -> Int
+winnings = sum . map (uncurry (*)) . zip [1..] . map (\(h, c, b) -> b) .
+           sortBy (compare `on` (\(h, cs, b) -> (h, cs)))
 
-part1 :: [(Hand, Int)] -> Int
-part1 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
-        sortOn (handView . fst)
+upgrade :: Int -> Hand -> Hand
+upgrade 5 x            = FiveOfAKind
+upgrade 4 x            = FiveOfAKind
+upgrade 3 FullHouse    = FiveOfAKind
+upgrade 3 x            = FourOfAKind
+upgrade 2 FullHouse    = FiveOfAKind
+upgrade 2 TwoPair      = FourOfAKind
+upgrade 2 OnePair      = ThreeOfAKind
+upgrade 1 FourOfAKind  = FiveOfAKind
+upgrade 1 ThreeOfAKind = FourOfAKind
+upgrade 1 TwoPair      = FullHouse
+upgrade 1 OnePair      = ThreeOfAKind
+upgrade 1 HighCard     = OnePair
+upgrade 0 x            = x
 
-upgrade :: Int -> Int -> Int
-upgrade 5 x = 7  -- Five jokers -> Five of a kind.
-upgrade 4 x = 7  -- Four jokers -> Five of a kind (match the fifth).
-upgrade 3 5 = 7  -- Three jokers in a full house -> Five of a kind.
-upgrade 3 x = 6  -- Three jokers but no full house -> Four of a kind.
-upgrade 2 5 = 7  -- Two jokers in a full house -> Five of a kind.
-upgrade 2 3 = 6  -- Two jokers and another pair -> Four of a kind.
-upgrade 2 2 = 4  -- Two jokers and three different cards -> Three of a kind.
-upgrade 1 6 = 7  -- One joker: Four of a kind -> Five of a kind.
-upgrade 1 4 = 6  -- One joker: Three of a kind -> Four of a kind.
-upgrade 1 3 = 5  -- One joker: Two pairs -> Full house.
-upgrade 1 2 = 4  -- One joker: One pair -> Three of a kind.
-upgrade 1 1 = 2  -- One joker: High card -> One pair.
-upgrade 0 x = x  -- No jokers, no change.
-
-value2 :: Char -> Int
-value2 'J' = 1
-value2 x = value x
-
-handView2 cs = (upgrade (length [1 | c <- cs, c == 'J']) (handType cs), map value2 cs)
-
-part2 :: [(Hand, Int)] -> Int
-part2 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
-        sortOn (handView2 . fst)
+jokerify (t, cs, b) = (upgrade numJokers t, cs', b)
+  where cs' = [if c == Jack then Joker else c | c <- cs]
+        numJokers = length [1 | c <- cs', c == Joker]
 
 main = do
   input <- parse <$> getContents
-  putStrLn $ show $ part1 input
-  putStrLn $ show $ part2 input
+  putStrLn $ show $ winnings input
+  putStrLn $ show $ winnings $ map jokerify input
