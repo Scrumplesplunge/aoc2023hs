@@ -16,9 +16,9 @@ handType cs = case sort $ map length $ group $ sort cs of
     [1, 1, 1, 2] -> OnePair
     [1, 1, 1, 1, 1] -> HighCard
 
-parse :: String -> [(Hand, [Card], Int)]
+parse :: String -> [((Hand, [Card]), Int)]
 parse = map (parseHand . words) . lines
-  where parseHand [h, b] = let h' = map card h in (handType h', h', read b)
+  where parseHand [h, b] = let h' = map card h in ((handType h', h'), read b)
         card '2' = Two
         card '3' = Three
         card '4' = Four
@@ -33,9 +33,9 @@ parse = map (parseHand . words) . lines
         card 'K' = King
         card 'A' = Ace
 
-winnings :: [(Hand, [Card], Int)] -> Int
-winnings = sum . map (uncurry (*)) . zip [1..] . map (\(h, c, b) -> b) .
-           sortBy (compare `on` (\(h, cs, b) -> (h, cs)))
+winnings :: [((Hand, [Card]), Int)] -> Int
+winnings = sum . map (uncurry (*)) . zip [1..] . map snd .
+           sortBy (compare `on` fst)
 
 upgrade :: Int -> Hand -> Hand
 upgrade 5 x            = FiveOfAKind
@@ -52,7 +52,7 @@ upgrade 1 OnePair      = ThreeOfAKind
 upgrade 1 HighCard     = OnePair
 upgrade 0 x            = x
 
-jokerify (t, cs, b) = (upgrade numJokers t, cs', b)
+jokerify ((t, cs), b) = ((upgrade numJokers t, cs'), b)
   where cs' = [if c == Jack then Joker else c | c <- cs]
         numJokers = length [1 | c <- cs', c == Joker]
 
