@@ -31,21 +31,26 @@ part1 :: [(Hand, Int)] -> Int
 part1 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
         sortOn (handView . fst)
 
-options :: Hand -> [Hand]
-options cs = if null js then [cs]
-             else if null vs then ["AAAAA"]
-             else map withJokerAs (nub vs)
-  where (js, vs) = partition (== 'J') cs
-        withJokerAs x = map (\c -> if c == 'J' then x else c) cs
-
-bestType :: Hand -> Int
-bestType = maximum . map handType . options
+upgrade :: Int -> Int -> Int
+upgrade 5 x = 7  -- Five jokers -> Five of a kind.
+upgrade 4 x = 7  -- Four jokers -> Five of a kind (match the fifth).
+upgrade 3 5 = 7  -- Three jokers in a full house -> Five of a kind.
+upgrade 3 x = 6  -- Three jokers but no full house -> Four of a kind.
+upgrade 2 5 = 7  -- Two jokers in a full house -> Five of a kind.
+upgrade 2 3 = 6  -- Two jokers and another pair -> Four of a kind.
+upgrade 2 2 = 4  -- Two jokers and three different cards -> Three of a kind.
+upgrade 1 6 = 7  -- One joker: Four of a kind -> Five of a kind.
+upgrade 1 4 = 6  -- One joker: Three of a kind -> Four of a kind.
+upgrade 1 3 = 5  -- One joker: Two pairs -> Full house.
+upgrade 1 2 = 4  -- One joker: One pair -> Three of a kind.
+upgrade 1 1 = 2  -- One joker: High card -> One pair.
+upgrade 0 x = x  -- No jokers, no change.
 
 value2 :: Char -> Int
 value2 'J' = 1
 value2 x = value x
 
-handView2 cs = (bestType cs, map value2 cs)
+handView2 cs = (upgrade (length [1 | c <- cs, c == 'J']) (handType cs), map value2 cs)
 
 part2 :: [(Hand, Int)] -> Int
 part2 = sum . map (\(rank, (hand, bet)) -> rank * bet) . zip [1..] .
