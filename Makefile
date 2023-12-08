@@ -1,5 +1,6 @@
 .PHONY: all test clean
 .PRECIOUS: build/%-build build/%.output build/%.verdict
+.PRECIOUS: inputs/day%.txt inputs/day%.output
 
 INPUTS = $(shell find src -name 'day*.hs' | sort)
 SOLVERS = ${INPUTS:src/%.hs=build/%}
@@ -22,7 +23,7 @@ build/%-build: | build
 build/% build/%-build/Main.hi build/%-build/Main.o &: src/%.hs | build/%-build
 	ghc -hidir build/$*-build -odir build/$*-build -O2 $^ -o $@
 
-inputs/day%.txt:
+inputs/day%.txt inputs/day%.output:
 	tools/fetch.sh $*
 
 build/%.output: build/% inputs/%.txt
