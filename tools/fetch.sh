@@ -11,3 +11,4 @@ echo "day $day -> $file"
 mkdir -p inputs
 curl -H "$cookie" "https://adventofcode.com/2023/day/$day/input"  \
   > "$file.tmp" && mv "$file"{.tmp,}
+touch "$(printf 'inputs/day%02d.output' "$day")"
