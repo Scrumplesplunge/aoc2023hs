@@ -89,8 +89,8 @@ count = sum . odds . go 0
 main = do
   (start, grid) <- parse <$> getContents
   -- Find the loop.
-  let consider d = explore grid d (step d start) >>= (\cs -> return (d, cs))
-      Just (d, cs) = msum $ map consider [U, D, L, R]
+  let consider d = explore grid d (step d start)
+      Just cs = msum $ map consider [U, D, L, R]
   putStrLn $ show $ (length cs + 1) `div` 2
   -- Build a clean grid which only contains the loop.
   let b@(_, (w, h)) = bounds grid
