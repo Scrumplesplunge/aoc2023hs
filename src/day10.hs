@@ -43,38 +43,31 @@ check :: Grid -> Coord -> Maybe Coord
 check grid coord = if inRange (bounds grid) coord then Just coord else Nothing
 
 -- Follow a pipe until we get back to the start cell (or Nothing otherwise).
-explore :: Grid -> Coord -> Direction -> Maybe [Coord]
-explore = go []
-  where go cs grid pos dir = do
+explore :: Grid -> Direction -> Coord -> Maybe [(Coord, Char)]
+explore grid startDir = go [] startDir
+  where go :: [(Coord, Char)] -> Direction -> Coord -> Maybe [(Coord, Char)]
+        go cs dir pos = do
           let c = grid ! pos
           case c of
-            'S' -> return cs
+            'S' -> return ((pos, inferPipe dir startDir) : cs)
             _ -> do
               dir' <- follow c dir
               pos' <- check grid $ step dir' pos
-              go (pos : cs) grid pos' dir'
+              go ((pos, c) : cs) dir' pos'
 
--- Given the direction of the entrance to the loop and the list of cells that
--- compose the loop itself (not including the start position), infer the shape
--- of the piece of pipe at the start position.
-findStartPipe :: Direction -> [Coord] -> Char
-findStartPipe d cs = result
-  where (ax, ay) = last cs
-        (bx, by) = head cs
-        delta = (bx - ax, by - ay)
-        result = case (d, bx - ax, by - ay) of
-          (U,  0,  2) -> '|'
-          (U, -1,  1) -> 'J'
-          (U,  1,  1) -> 'L'
-          (D,  0, -2) -> '|'
-          (D, -1, -1) -> '7'
-          (D,  1, -1) -> 'F'
-          (L,  2,  0) -> '-'
-          (L,  1, -1) -> 'J'
-          (L,  1,  1) -> '7'
-          (R, -2,  0) -> '-'
-          (R, -1, -1) -> 'L'
-          (R, -1,  1) -> 'F'
+inferPipe :: Direction -> Direction -> Char
+inferPipe U U = '|'
+inferPipe U L = '7'
+inferPipe U R = 'F'
+inferPipe D D = '|'
+inferPipe D L = 'J'
+inferPipe D R = 'L'
+inferPipe L U = 'L'
+inferPipe L L = '-'
+inferPipe L D = 'F'
+inferPipe R U = 'J'
+inferPipe R R = '-'
+inferPipe R D = '7'
 
 -- Count the number of cells in a row which are inside the loop.
 count :: String -> Int
@@ -96,14 +89,11 @@ count = sum . odds . go 0
 main = do
   (start, grid) <- parse <$> getContents
   -- Find the loop.
-  let consider d = explore grid (step d start) d >>= (\cs -> return (d, cs))
+  let consider d = explore grid d (step d start) >>= (\cs -> return (d, cs))
       Just (d, cs) = msum $ map consider [U, D, L, R]
   putStrLn $ show $ (length cs + 1) `div` 2
   -- Build a clean grid which only contains the loop.
-  let startPipe = findStartPipe d cs
-      b@(_, (w, h)) = bounds grid
-      empty = array b (zip (indices grid) (repeat '.'))
-      clean = empty // ((start, startPipe) : map (\c -> (c, grid ! c)) cs)
+  let b@(_, (w, h)) = bounds grid
+      clean = array b (zip (indices grid) (repeat '.')) // cs
       rows = [[clean ! (x, y) | x <- [1..w]] | y <- [1..h]]
-      inside = sum $ map count $ rows
-  putStrLn $ show $ inside
+  putStrLn $ show $ sum $ map count $ rows
