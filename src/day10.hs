@@ -1,9 +1,5 @@
 import Control.Monad
-import Control.Monad.State
 import Data.Array
-import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Tuple
 
 type Coord = (Int, Int)
@@ -80,24 +76,27 @@ findStartPipe d cs = result
           (R, -1, -1) -> 'L'
           (R, -1,  1) -> 'F'
 
--- Returns true if it is possible to move in the given direction starting at the
--- top left corner of the given cell.
-canSqueeze :: Grid -> Coord -> Direction -> Bool
-canSqueeze grid (x, y) U = not (a `elem` "LF-" && b `elem` "J7-")
-  where a = grid ! (x - 1, y - 1)
-        b = grid ! (x, y - 1)
-canSqueeze grid (x, y) D = not (a `elem` "LF-" && b `elem` "J7-")
-  where a = grid ! (x - 1, y)
-        b = grid ! (x, y)
-canSqueeze grid (x, y) L = not (a `elem` "|7F" && b `elem` "|JL")
-  where a = grid ! (x - 1, y - 1)
-        b = grid ! (x - 1, y)
-canSqueeze grid (x, y) R = not (a `elem` "|7F" && b `elem` "|JL")
-  where a = grid ! (x, y - 1)
-        b = grid ! (x, y)
-
-squeeze grid coord dir =
-  if canSqueeze grid coord dir then Just (step dir coord) else Nothing
+-- Count the number of cells in a row which are inside the loop.
+count :: String -> Int
+count = outside 0 . squash
+  where squash :: String -> String
+        squash ('L' : xs) = top xs
+        squash ('F' : xs) = bottom xs
+        squash ('|' : xs) = '|' : squash xs
+        squash ('.' : xs) = '.' : squash xs
+        squash "" = ""
+        top ('-' : xs) = top xs
+        top ('7' : xs) = '|' : squash xs
+        top ('J' : xs) = squash xs
+        bottom ('-' : xs) = bottom xs
+        bottom ('J' : xs) = '|' : squash xs
+        bottom ('7' : xs) = squash xs
+        outside :: Int -> String -> Int
+        outside n ('|' : xs) = inside n xs
+        outside n (_   : xs) = outside n xs
+        outside n [] = n
+        inside n ('|' : xs) = outside n xs
+        inside n (_   : xs) = inside (n + 1) xs
 
 main = do
   (start, grid) <- parse <$> getContents
@@ -107,28 +106,9 @@ main = do
   putStrLn $ show $ (length cs + 1) `div` 2
   -- Build a clean grid which only contains the loop.
   let startPipe = findStartPipe d cs
-      empty = array (bounds grid) (zip (indices grid) (repeat '.'))
+      b@(_, (w, h)) = bounds grid
+      empty = array b (zip (indices grid) (repeat '.'))
       clean = empty // (map (\c -> (c, grid ! c)) cs ++ [(start, startPipe)])
-  -- Fill the contained area.
-  let ((1, 1), (w, h)) = bounds grid
-      nearEdge (x, y) = x == 1 || y == 1 || x == w + 1 || y == h + 1
-      fill :: Coord -> StateT (Set Coord) Maybe ()
-      fill pos = do
-        seen <- Set.member pos <$> get
-        if seen then
-          return ()
-        else if nearEdge pos then
-          fail "At edge"
-        else do
-          modify (Set.insert pos)
-          let ns = catMaybes (map (squeeze clean pos) [U, D, L, R])
-          mapM fill ns
-          return ()
-      runFill :: Coord -> Maybe (Set Coord)
-      runFill c = snd <$> runStateT (fill c) Set.empty
-      starts = concat [[p, step D p] | p <- [start, step R start]]
-      -- Find the set of reachable vertices.
-      Just vs = msum $ map runFill starts
-      -- Restrict the set to the open spaces.
-      es = filter (\v -> clean ! v == '.') (Set.elems vs)
-  putStrLn $ show $ length es
+      rows = [[clean ! (x, y) | x <- [1..w]] | y <- [1..h]]
+      inside = sum $ map count $ rows
+  putStrLn $ show $ inside
