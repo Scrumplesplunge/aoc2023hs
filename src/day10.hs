@@ -78,25 +78,20 @@ findStartPipe d cs = result
 
 -- Count the number of cells in a row which are inside the loop.
 count :: String -> Int
-count = outside 0 . squash
-  where squash :: String -> String
-        squash ('L' : xs) = top xs
-        squash ('F' : xs) = bottom xs
-        squash ('|' : xs) = '|' : squash xs
-        squash ('.' : xs) = '.' : squash xs
-        squash "" = ""
-        top ('-' : xs) = top xs
-        top ('7' : xs) = '|' : squash xs
-        top ('J' : xs) = squash xs
-        bottom ('-' : xs) = bottom xs
-        bottom ('J' : xs) = '|' : squash xs
-        bottom ('7' : xs) = squash xs
-        outside :: Int -> String -> Int
-        outside n ('|' : xs) = inside n xs
-        outside n (_   : xs) = outside n xs
-        outside n [] = n
-        inside n ('|' : xs) = outside n xs
-        inside n (_   : xs) = inside (n + 1) xs
+count = sum . odds . go 0
+  where go n [] = [n]
+        go n ('|' : xs) = n : go 0 xs
+        go n ('L' : xs) = top n xs
+        go n ('F' : xs) = bottom n xs
+        go n (_   : xs) = go (n + 1) xs
+        top n ('-' : xs) = top n xs
+        top n ('7' : xs) = n : go 0 xs
+        top n ('J' : xs) = go n xs
+        bottom n ('-' : xs) = bottom n xs
+        bottom n ('7' : xs) = go n xs
+        bottom n ('J' : xs) = n : go 0 xs
+        odds (x : y : xs) = y : odds xs
+        odds _ = []
 
 main = do
   (start, grid) <- parse <$> getContents
