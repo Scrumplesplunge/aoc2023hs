@@ -103,7 +103,7 @@ main = do
   let startPipe = findStartPipe d cs
       b@(_, (w, h)) = bounds grid
       empty = array b (zip (indices grid) (repeat '.'))
-      clean = empty // (map (\c -> (c, grid ! c)) cs ++ [(start, startPipe)])
+      clean = empty // ((start, startPipe) : map (\c -> (c, grid ! c)) cs)
       rows = [[clean ! (x, y) | x <- [1..w]] | y <- [1..h]]
       inside = sum $ map count $ rows
   putStrLn $ show $ inside
