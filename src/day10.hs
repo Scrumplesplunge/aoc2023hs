@@ -33,11 +33,11 @@ follow 'F' U = Just R
 follow 'F' L = Just D
 follow _   _ = Nothing
 
-step :: Direction -> Coord -> Coord
-step U (x, y) = (x, y - 1)
-step D (x, y) = (x, y + 1)
-step L (x, y) = (x - 1, y)
-step R (x, y) = (x + 1, y)
+step :: Coord -> Direction -> Coord
+step (x, y) U = (x, y - 1)
+step (x, y) D = (x, y + 1)
+step (x, y) L = (x - 1, y)
+step (x, y) R = (x + 1, y)
 
 check :: Grid -> Coord -> Maybe Coord
 check grid coord = if inRange (bounds grid) coord then Just coord else Nothing
@@ -52,7 +52,7 @@ explore grid startDir = go [] startDir
             'S' -> return ((pos, inferPipe dir startDir) : cs)
             _ -> do
               dir' <- follow c dir
-              pos' <- check grid $ step dir' pos
+              pos' <- check grid $ step pos dir'
               go ((pos, c) : cs) dir' pos'
 
 inferPipe :: Direction -> Direction -> Char
@@ -89,7 +89,7 @@ count = sum . odds . go 0
 main = do
   (start, grid) <- parse <$> getContents
   -- Find the loop.
-  let Just cs = msum $ map (explore grid <*> flip step start) [U, D, L, R]
+  let Just cs = msum $ map (explore grid <*> step start) [U, D, L, R]
   putStrLn $ show $ (length cs + 1) `div` 2
   -- Build a clean grid which only contains the loop.
   let b@(_, (w, h)) = bounds grid
