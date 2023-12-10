@@ -1,4 +1,3 @@
-import Debug.Trace
 import Control.Monad
 import Control.Monad.State
 import Data.Array
@@ -22,6 +21,7 @@ parse input = (start, array ((1, 1), (w, h)) cells)
 
 data Direction = U | D | L | R
 
+-- Given a pipe and the direction we entered it from, emit the exit direction.
 follow :: Char -> Direction -> Maybe Direction
 follow '|' U = Just U
 follow '|' D = Just D
@@ -46,6 +46,7 @@ step R (x, y) = (x + 1, y)
 check :: Grid -> Coord -> Maybe Coord
 check grid coord = if inRange (bounds grid) coord then Just coord else Nothing
 
+-- Follow a pipe until we get back to the start cell (or Nothing otherwise).
 explore :: Grid -> Coord -> Direction -> Maybe [Coord]
 explore = go []
   where go cs grid pos dir = do
@@ -57,9 +58,9 @@ explore = go []
               pos' <- check grid $ step dir' pos
               go (pos : cs) grid pos' dir'
 
-part1 (start, grid) = (length x + 1) `div` 2
-  where Just x = msum $ map (\d -> explore grid (step d start) d) [U, D, L, R]
-
+-- Given the direction of the entrance to the loop and the list of cells that
+-- compose the loop itself (not including the start position), infer the shape
+-- of the piece of pipe at the start position.
 findStartPipe :: Direction -> [Coord] -> Char
 findStartPipe d cs = result
   where (ax, ay) = last cs
@@ -79,6 +80,8 @@ findStartPipe d cs = result
           (R, -1, -1) -> 'L'
           (R, -1,  1) -> 'F'
 
+-- Returns true if it is possible to move in the given direction starting at the
+-- top left corner of the given cell.
 canSqueeze :: Grid -> Coord -> Direction -> Bool
 canSqueeze grid (x, y) U = not (a `elem` "LF-" && b `elem` "J7-")
   where a = grid ! (x - 1, y - 1)
@@ -96,41 +99,36 @@ canSqueeze grid (x, y) R = not (a `elem` "|7F" && b `elem` "|JL")
 squeeze grid coord dir =
   if canSqueeze grid coord dir then Just (step dir coord) else Nothing
 
--- TODO: Share work between parts 1 and 2.
-part2 (start, grid) = length rs'  -- debug $ clean // (map (\c -> (c, 'O')) rs')
-  where Just (d, cs) = msum $ map consider [U, D, L, R]
-        consider d = explore grid (step d start) d >>= (\cs -> return (d, cs))
-        startPipe = findStartPipe d cs
-        -- Build a new grid which only contains pipes that are part of the wall.
-        empty = array (bounds grid) (zip (indices grid) (repeat '.'))
-        clean = empty // (map (\c -> (c, grid ! c)) cs ++ [(start, startPipe)])
-        -- For debugging, print out a grid
-        ((1, 1), (w, h)) = bounds grid
-        nearEdge (x, y) = x == 1 || y == 1 || x == w + 1 || y == h + 1
-        debug g = unlines [[g ! (x, y) | x <- [1..w]] | y <- [1..h]]
-        fill :: Coord -> StateT (Set Coord) Maybe ()
-        fill pos = do
-          trace ("fill " ++ show pos) return ()
-          seen <- Set.member pos <$> get
-          if seen then
-            return ()
-          else if nearEdge pos then
-            fail "At edge"
-          else do
-            modify (Set.insert pos)
-            let ns = catMaybes (map (squeeze clean pos) [U, D, L, R])
-            trace ("neighbours " ++ show ns) return ()
-            mapM fill ns
-            return ()
-        runFill :: Coord -> Maybe (Set Coord)
-        runFill c = snd <$> runStateT (fill c) Set.empty
-        -- Find the set of reachable vertices.
-        Just rs = msum $ map runFill [start, step D start, step R start, step R $ step D start]
-        -- Restrict the set to the open spaces.
-        rs' = filter (\c -> clean ! c == '.') (Set.elems rs)
-
--- part 2: 7464 too high
 main = do
-  input <- parse <$> getContents
-  putStrLn $ show $ part1 input
-  putStrLn $ show $ part2 input
+  (start, grid) <- parse <$> getContents
+  -- Find the loop.
+  let consider d = explore grid (step d start) d >>= (\cs -> return (d, cs))
+      Just (d, cs) = msum $ map consider [U, D, L, R]
+  putStrLn $ show $ (length cs + 1) `div` 2
+  -- Build a clean grid which only contains the loop.
+  let startPipe = findStartPipe d cs
+      empty = array (bounds grid) (zip (indices grid) (repeat '.'))
+      clean = empty // (map (\c -> (c, grid ! c)) cs ++ [(start, startPipe)])
+  -- Fill the contained area.
+  let ((1, 1), (w, h)) = bounds grid
+      nearEdge (x, y) = x == 1 || y == 1 || x == w + 1 || y == h + 1
+      fill :: Coord -> StateT (Set Coord) Maybe ()
+      fill pos = do
+        seen <- Set.member pos <$> get
+        if seen then
+          return ()
+        else if nearEdge pos then
+          fail "At edge"
+        else do
+          modify (Set.insert pos)
+          let ns = catMaybes (map (squeeze clean pos) [U, D, L, R])
+          mapM fill ns
+          return ()
+      runFill :: Coord -> Maybe (Set Coord)
+      runFill c = snd <$> runStateT (fill c) Set.empty
+      starts = concat [[p, step D p] | p <- [start, step R start]]
+      -- Find the set of reachable vertices.
+      Just vs = msum $ map runFill starts
+      -- Restrict the set to the open spaces.
+      es = filter (\v -> clean ! v == '.') (Set.elems vs)
+  putStrLn $ show $ length es
