@@ -1,21 +1,23 @@
 import Data.List
 
-expandY :: [String] -> [String]
-expandY (r : rs) = if all (== '.') r then r : r : expandY rs else r : expandY rs
-expandY [] = []
-expand = expandY . transpose . expandY . transpose
+labels :: Int -> [String] -> [Int]
+labels expansion = go 0
+  where go n [] = []
+        go n (r : rs) =
+          n : go (n + if all (== '.') r then expansion + 1 else 1) rs
 
-locate :: [String] -> [((Int, Int), Char)]
-locate = concat . zipWith (\y r -> zipWith (\x c -> ((x, y), c)) [1..] r) [1..]
-
-stars :: [((Int, Int), Char)] -> [(Int, Int)]
-stars = map fst . filter ((== '#') . snd)
+stars :: Int -> [String] -> [(Int, Int)]
+stars e rs = [(x, y) | (y, r) <- zip ys rs, (x, c) <- zip xs r, c == '#']
+  where ys = labels e rs
+        xs = labels e (transpose rs)
 
 dist (ax, ay) (bx, by) = abs (ax - bx) + abs (ay - by)
 
-part1 input = sum [dist a b | (a, r) <- zip s (tail (tails s)), b <- r]
-  where s = stars . locate . expand $ input
+dists :: Int -> [String] -> Int
+dists n input = sum [dist a b | (a, r) <- zip s (tail (tails s)), b <- r]
+  where s = stars n $ input
 
 main = do
   input <- lines <$> getContents
-  putStrLn . show . part1 $ input
+  putStrLn . show . dists 1 $ input
+  putStrLn . show . dists 999999 $ input
