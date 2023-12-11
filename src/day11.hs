@@ -1,20 +1,15 @@
 import Data.List
 
-labels :: Int -> [String] -> [Int]
-labels e = go 0
-  where go n [] = []
-        go n (r : rs) = n : go (n + if all (== '.') r then e else 1) rs
-
-stars :: Int -> [String] -> [(Int, Int)]
-stars e rs = [(x, y) | (y, r) <- zip ys rs, (x, c) <- zip xs r, c == '#']
-  where ys = labels e rs
-        xs = labels e (transpose rs)
-
-dist (ax, ay) (bx, by) = abs (ax - bx) + abs (ay - by)
-
 dists :: Int -> [String] -> Int
-dists n input = sum [dist a b | (a, r) <- zip s (tail (tails s)), b <- r]
-  where s = stars n $ input
+dists e input = distY input + distY (transpose input)
+  where -- Calculate the sum of vertical distances for all pairs.
+        distY = go 0 0 0 . map (\r -> length [c | c <- r, c == '#'])
+        -- n is the number of stars strictly above the current row
+        -- s is the sum of dy for each star strictly above the current row
+        -- total is the running total
+        go n s total [] = total
+        go n s total (0 : rs) = go n (s + n * e) total rs
+        go n s total (r : rs) = go (n + r) (s + n + r) (total + s * r) rs
 
 main = do
   input <- lines <$> getContents
