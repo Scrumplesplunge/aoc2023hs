@@ -1,10 +1,9 @@
 import Data.List
 
 labels :: Int -> [String] -> [Int]
-labels expansion = go 0
+labels e = go 0
   where go n [] = []
-        go n (r : rs) =
-          n : go (n + if all (== '.') r then expansion + 1 else 1) rs
+        go n (r : rs) = n : go (n + if all (== '.') r then e else 1) rs
 
 stars :: Int -> [String] -> [(Int, Int)]
 stars e rs = [(x, y) | (y, r) <- zip ys rs, (x, c) <- zip xs r, c == '#']
@@ -19,5 +18,5 @@ dists n input = sum [dist a b | (a, r) <- zip s (tail (tails s)), b <- r]
 
 main = do
   input <- lines <$> getContents
-  putStrLn . show . dists 1 $ input
-  putStrLn . show . dists 999999 $ input
+  putStrLn . show . dists 2 $ input
+  putStrLn . show . dists 1000000 $ input
