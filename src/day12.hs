@@ -14,7 +14,7 @@ arrange l cs = a ! (0, 0)
   where (n, m) = (length l, length cs)
         line = array (0, n) $ zip [0..] $ tails l
         counts = array (0, m - 1) $ zip [0..] cs
-        a = array ((0, 0), (n, m)) [((i, j), f i j) | i <- [0..n], j <- [0..m]]
+        a = array ((0, 0), (n, m)) [((i, j), f i j) | j <- [0..m], i <- [0..n]]
         f i j
           | j == m                 = if any (== '#') (line ! i) then 0 else 1
           | i == n                 = 0
