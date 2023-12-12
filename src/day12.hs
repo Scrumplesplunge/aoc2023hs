@@ -22,7 +22,7 @@ arrange l cs = a ! (0, 0)
               | otherwise       = here + after
           where c = counts ! j
                 i' = i + c
-                canFit = i' <= n && not (any ((=='.') . (line!)) [i..i+c-1])
+                canFit = i' <= n && not (any (\i -> line ! i == '.') [i..i+c-1])
                 canStop = i' == n || line ! i' /= '#'
                 poss = canFit && canStop
                 here = if poss then a ! (min (i' + 1) n, j + 1) else 0
