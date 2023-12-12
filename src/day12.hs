@@ -12,18 +12,23 @@ parse = map (entry . words) . lines
 arrange :: String -> [Int] -> Int
 arrange l cs = a ! (0, 0)
   where (n, m) = (length l, length cs)
+        line = array (0, n) $ zip [0..] $ tails l
+        counts = array (0, m - 1) $ zip [0..] cs
         a = array ((0, 0), (n, m)) [((i, j), f i j) | i <- [0..n], j <- [0..m]]
-        f i j | j == m        = if any (== '#') (drop i l) then 0 else 1
-              | i == n        = 0
-              | l !! i == '.' = a ! (i + 1, j)
-              | otherwise     = here + after
-          where c = cs !! j
-                (p, s) = splitAt c (drop i l)
-                canFit = length p == c && not (any (== '.') p)
-                canStop = null s || head s /= '#'
+        f i j
+          | j == m                 = if any (== '#') (line ! i) then 0 else 1
+          | i == n                 = 0
+          | head (line ! i) == '.' = a ! (i + 1, j)
+          | otherwise              = here + after
+          where c = counts ! j
+                i' = i + c
+                p = take c (line ! i)
+                s = line ! i'
+                canFit = i' <= n && not (any (== '.') p)
+                canStop = i' == n || head s /= '#'
                 poss = canFit && canStop
-                here = if poss then a ! (n - length (drop 1 s), j + 1) else 0
-                after = if l !! i == '?' then a ! (i + 1, j) else 0
+                here = if poss then a ! (min (i' + 1) n, j + 1) else 0
+                after = if head (line ! i) == '?' then a ! (i + 1, j) else 0
 
 part1 :: [(String, [Int])] -> Int
 part1 = sum . map (uncurry arrange)
