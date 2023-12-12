@@ -23,9 +23,8 @@ arrange l cs = a ! (0, 0)
           where c = counts ! j
                 i' = i + c
                 p = take c (line ! i)
-                s = line ! i'
                 canFit = i' <= n && not (any (== '.') p)
-                canStop = i' == n || head s /= '#'
+                canStop = i' == n || head (line ! i') /= '#'
                 poss = canFit && canStop
                 here = if poss then a ! (min (i' + 1) n, j + 1) else 0
                 after = if head (line ! i) == '?' then a ! (i + 1, j) else 0
