@@ -28,15 +28,10 @@ arrange l cs = a ! (0, 0)
                 here = if poss then a ! (min (i' + 1) n, j + 1) else 0
                 after = if line ! i == '?' then a ! (i + 1, j) else 0
 
-part1 :: [(String, [Int])] -> Int
-part1 = sum . map (uncurry arrange)
-
-part2 :: [(String, [Int])] -> Int
-part2 = sum . map (uncurry arrange) . map unfold
-  where unfold (l, c) =
-          (intercalate "?" $ replicate 5 l, concat $ replicate 5 c)
+unfold :: (String, [Int]) -> (String, [Int])
+unfold (l, c) = (intercalate "?" (replicate 5 l), concat (replicate 5 c))
 
 main = do
   input <- parse <$> getContents
-  putStrLn $ show $ part1 input
-  putStrLn $ show $ part2 input
+  putStrLn . show . sum . map (uncurry arrange) $ input
+  putStrLn . show . sum . map (uncurry arrange . unfold) $ input
