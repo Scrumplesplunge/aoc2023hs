@@ -16,8 +16,8 @@ arrange l cs = a ! (0, 0)
         counts = array (0, m - 1) $ zip [0..] cs
         bad i = line ! i == '#'
         a = array ((0, 0), (n, m)) [((i, j), f i j) | j <- [0..m], i <- [0..n]]
-        f i j | j == m          = if any bad [i..n-1] then 0 else 1
-              | i == n          = 0
+        f i j | i == n          = if j == m then 1 else 0
+              | j == m          = if bad i then 0 else a ! (i + 1, j)
               | line ! i == '.' = a ! (i + 1, j)
               | otherwise       = here + after
           where c = counts ! j
