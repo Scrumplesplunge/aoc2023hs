@@ -29,11 +29,17 @@ smudgedRowMirrors = zip [0..] . map rowMirrors . options
 -- Returns a list of [(smudgePos, mirrorOffset)]
 smudgedMirrors :: [String] -> [Int]
 smudgedMirrors grid = [i | i <- nub $ map snd outs, not (i `elem` is)]
-  where clean :: [[Int]]
+  where -- Possible mirror columns for each row.
+        clean :: [[Int]]
         clean = map rowMirrors grid
-        -- smudged !! y is the options for row y.
+        -- Possible (smudgePos, [mirrorOffset]) options for each row, assuming
+        -- that row is the one with the smudge.
         smudged :: [[(Int, [Int])]]
         smudged = map smudgedRowMirrors grid
+        -- We need to calculate the intersections of the lists for each row for
+        -- all combinations containing exactly one smudged row. To do that
+        -- efficiently, we first compute `gaps`, a list of intersected lists
+        -- where entry i is the intersection of all clean rows except for i.
         ls :: [[Int]]
         ls = scanl1 intersect clean
         rs :: [[Int]]
@@ -41,25 +47,24 @@ smudgedMirrors grid = [i | i <- nub $ map snd outs, not (i `elem` is)]
         is = head rs
         gaps :: [[Int]]
         gaps = rs !! 1 : zipWith intersect ls (drop 2 rs) ++ [reverse ls !! 1]
+        -- Given the smudge options for row i and the intersection of all clean
+        -- rows except row i, computes a list of possible mirror offsets.
         checkRow sm cl = [(p, m) | (p, as) <- sm, m <- intersect as cl]
         outs :: [((Int, Int), Int)]
         outs = concat $
                zipWith (\y r -> [((x, y), m) | (x, m) <- r]) [1..] $
                zipWith checkRow smudged gaps
 
--- part1 :: [String] -> Int
 mirrorId grid = i
   where xs = mirrors grid
         ys = mirrors (transpose grid)
         [i] = xs ++ map (*100) ys
 
 smudgedMirrorId :: [String] -> Int
-smudgedMirrorId grid = only is
+smudgedMirrorId grid = i
   where xs = smudgedMirrors grid
         ys = smudgedMirrors (transpose grid)
-        is = xs ++ map (*100) ys
-        only [x] = x
-        only xs = error ("For grid:\n" ++ unlines grid ++ "Not unique: " ++ show xs)
+        [i] = xs ++ map (*100) ys
 
 part1 :: [[String]] -> Int
 part1 = sum . map mirrorId
