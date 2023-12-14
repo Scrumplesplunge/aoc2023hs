@@ -2,6 +2,7 @@ import Data.List
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 
+-- Roll stones towards the start of the string.
 roll :: String -> String
 roll = go 0
   where go e ('.' : xs) = go (e + 1) xs
@@ -26,15 +27,11 @@ part2 = run Map.empty Map.empty . zip [0..] . spin
           case Map.lookup x x2i of
             Nothing -> run (Map.insert i x i2x) (Map.insert x i x2i) xs
             Just j ->
-              -- Want the result after 1000000000 cycles
-              -- 1000000000 = j + (i - j) * q + r for some (q, r)
-              -- 1000000000 - j = (i - j) * q + r
-              -- We can find (q, r) with (1000000000 - j) `divMod` (i - j)
-              -- And then the final state will be the same as the `j + r`th one.
-              let (q, r) = (1000000000 - j) `divMod` (i - j)
-              in load (i2x ! (j + r))
+              -- Cycle i is a repeat of cycle j, so we have a loop. The
+              -- billionth cycle will match the cycle j + r, where
+              let r = (1000000000 - j) `mod` (i - j) in load (i2x ! (j + r))
 
 main = do
   input <- lines <$> getContents
-  putStrLn $ show $ load $ reverse $ transpose $ tumble $ input
+  putStrLn $ show $ load $ transpose $ map roll $ transpose $ input
   putStrLn $ show $ part2 $ input
