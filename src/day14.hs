@@ -3,25 +3,21 @@ import Data.Map (Map, (!))
 import qualified Data.Map as Map
 
 roll :: String -> String
-roll = (\s -> seq (length s) s) . go 0 0
-  where go r e ('.' : xs) = go r (e + 1) xs
-        go r e ('O' : xs) = go (r + 1) e xs
-        go r e ('#' : xs) = gap r e ++ "#" ++ go 0 0 xs
-        go r e [] = gap r e
-        gap r e = replicate r 'O' ++ replicate e '.'
+roll = go 0
+  where go e ('.' : xs) = go (e + 1) xs
+        go e ('O' : xs) = 'O' : go e xs
+        go e ('#' : xs) = replicate e '.' ++ ('#' : go 0 xs)
+        go e [] = replicate e '.'
 
 load :: [String] -> Int
 load = sum . zipWith (\y xs -> sum [y | 'O' <- xs]) [1..] . reverse
 
-north, east, south, west :: [String] -> [String]
-north xs@([] : _) = xs
-north xs = zipWith (:) (roll $ map head $ xs) (north (map tail xs))
-east = map roll
-south = reverse . north . reverse
-west = map reverse . east . map reverse
+-- Roll everything North and then rotate clockwise by 90 degrees.
+tumble :: [String] -> [String]
+tumble = map (reverse . roll) . transpose
 
 spin :: [String] -> [[String]]
-spin = iterate (west . south . east . north)
+spin = iterate (tumble . tumble . tumble . tumble)
 
 part2 :: [String] -> Int
 part2 = run Map.empty Map.empty . zip [0..] . spin
@@ -40,5 +36,5 @@ part2 = run Map.empty Map.empty . zip [0..] . spin
 
 main = do
   input <- lines <$> getContents
-  putStrLn $ show $ load $ transpose $ map roll $ transpose $ input
+  putStrLn $ show $ load $ reverse $ transpose $ tumble $ input
   putStrLn $ show $ part2 $ input
