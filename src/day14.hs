@@ -3,7 +3,7 @@ import Data.Map (Map, (!))
 import qualified Data.Map as Map
 
 roll :: String -> String
-roll = go 0 0
+roll = (\s -> seq (length s) s) . go 0 0
   where go r e ('.' : xs) = go r (e + 1) xs
         go r e ('O' : xs) = go (r + 1) e xs
         go r e ('#' : xs) = gap r e ++ "#" ++ go 0 0 xs
