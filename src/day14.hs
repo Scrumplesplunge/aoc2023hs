@@ -11,7 +11,7 @@ roll = go 0 0
         gap r e = replicate r 'O' ++ replicate e '.'
 
 load :: [String] -> Int
-load = sum . zipWith (\y xs -> y * sum [1 | x <- xs, x == 'O']) [1..] . reverse
+load = sum . zipWith (\y xs -> sum [y | 'O' <- xs]) [1..] . reverse
 
 spin :: [String] -> [[String]]
 spin = iterate (west . south . east . north)
