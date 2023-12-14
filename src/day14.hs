@@ -15,7 +15,9 @@ load = sum . zipWith (\y xs -> sum [y | 'O' <- xs]) [1..] . reverse
 
 spin :: [String] -> [[String]]
 spin = iterate (west . south . east . north)
-  where north = transpose . east . transpose
+  where -- We could use `transpose . east . transpose`, but that is much slower.
+        north xs@([] : _) = xs
+        north xs = zipWith (:) (roll $ map head $ xs) (north (map tail xs))
         east = map roll
         south = reverse . north . reverse
         west = map reverse . east . map reverse
