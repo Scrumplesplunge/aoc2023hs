@@ -1,5 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
-
 import Control.Monad.ST
 import Data.Array
 import Data.Array.MArray
@@ -31,15 +29,11 @@ step m step = case o of
   where (l, o : f) = break (\x -> x `elem` "-=") step
         h = hash l
 
-part2' :: [String] -> (forall s . ST s (STArray s Int Bucket))
-part2' input = do
-  a <- newArray (0, 255) []
-  mapM (step a) input
-  return a
-
 part2 :: [String] -> Int
 part2 input = sum [(1 + i) * j * f | (i, bs) <- a, (j, (x, f)) <- zip [1..] bs]
-  where a = assocs $ runSTArray (part2' input)
+  where a = assocs $ runSTArray (do a <- newArray (0, 255) []
+                                    mapM (step a) input
+                                    return a)
 
 main = do
   input <- steps <$> (!!0) <$> lines <$> getContents
