@@ -1,5 +1,4 @@
 import Data.Char
-import Debug.Trace
 import Data.Array
 import Data.List
 import Data.Set (Set)
@@ -21,7 +20,11 @@ follow :: [(Direction, Int)] -> Vec -> [Vec]
 follow [] p = [p]
 follow (x : xs) p = p : follow xs (move x p)
 
--- condense :: [Vec] -> ([Int], [Int], [Vec])
+-- Condense a set of vertices down to a zoomed out grid (xs, ys, vs) such that
+-- each new cell (x, y) represents a rectangle of size (xs !! x) * (ys !! y)
+-- and the rectangle is either entirely inside the shape or entirely outside the
+-- shape.
+condense :: [Vec] -> ([Int], [Int], [Vec])
 condense vs = (weights xs, weights ys, map rewrite vs)
   where xs = squash 0 $ sort $ nub $ map fst vs
         ys = squash 0 $ sort $ nub $ map snd vs
@@ -34,13 +37,11 @@ condense vs = (weights xs, weights ys, map rewrite vs)
                                      (x1 + 1, (x' + 1, x2 - x1 - 1))])
                       (squash (x' + 2) xs)
           else Map.insert x1 (x', 1) $ squash (x' + 1) xs
-        debug = "xs = " ++ show xs ++ "\nys = " ++ show ys ++ "\nvs = " ++ show vs
-        rewrite (x, y)
-          | not (x `Map.member` xs) = error ("x=" ++ show x ++ " missing\n" ++ debug)
-          | not (y `Map.member` ys) = error ("y=" ++ show y ++ " missing\n" ++ debug)
-          | otherwise               = (fst (xs Map.! x), fst (ys Map.! y))
+        rewrite (x, y) = (fst (xs Map.! x), fst (ys Map.! y))
         weights = map snd . Map.elems
 
+-- Given a set of vertices with grid-aligned edges, extend it with all the
+-- points along the edges.
 steps :: [Vec] -> [Vec]
 steps ((x1, y1) : vs@((x2, y2) : _))
   | x1 == x2 = [(x1, y) | y <- [min y1 y2 .. max y1 y2]] ++ steps vs
@@ -48,14 +49,9 @@ steps ((x1, y1) : vs@((x2, y2) : _))
   | otherwise = error "Edge is not grid-aligned."
 steps vs = vs
 
--- #####
--- #...#    ###
--- #...# -> #.#
--- #####    ###
-
--- part1 :: [(Direction, Int)] -> Int
--- 99811 too high
-area input = trace debug $ sum xs * sum ys - total
+-- Calculate the total area of the shape formed by the given set of
+-- instructions.
+area input = sum xs * sum ys - total
   where (xs, ys, vs) = condense $ follow input (0, 0)
         path = steps vs
         minX = minimum (map fst path) - 1
@@ -63,8 +59,6 @@ area input = trace debug $ sum xs * sum ys - total
         minY = minimum (map snd path) - 1
         maxY = maximum (map snd path) + 1
         range = ((minX, minY), (maxX, maxY))
-        rows = map (sort . map fst) $ groupBy ((==) `on` snd) $ sortOn snd $ path
-        debugR row = [if x `elem` row then '#' else '.' | x <- [minX .. maxX]]
         empty = array range
                       [((x, y), '.') | x <- [minX..maxX], y <- [minY..maxY]]
         edges = empty // map (\p -> (p, '#')) path
@@ -77,25 +71,13 @@ area input = trace debug $ sum xs * sum ys - total
             let ns = map (\d -> move (d, 1) p) [U, D, L, R]
                 seen' = Set.insert p seen
             in foldl' explore seen' ns
-        out = explore Set.empty (minX, minY)
-        outside = edges // map (\p -> (p, 'O')) (Set.elems $ explore Set.empty (minX, minY))
+        outside = edges // map (\p -> (p, 'O'))
+                               (Set.elems $ explore Set.empty (minX, minY))
         total = sum [wx * wy | (x, wx) <- zip [minX + 1 .. maxX - 1] xs,
                                (y, wy) <- zip [minY + 1 .. maxY - 1] ys,
                                outside ! (x, y) == 'O']
-        showGrid a = [[a ! (x, y) | x <- [minX..maxX]] | y <- [minY..maxY]]
-        debug = (unlines $ map show input) ++ (unlines $ zipWith (\l r -> l ++ "  " ++ r) (showGrid edges) (showGrid outside))
-        fillOut as [] = []
-        fillOut ('O' : as) ('.' : bs) = 'O' : fillOut as bs
-        fillRow [] = 0
-        fillRow xs@(x : _) =
-          let (x', xs') = adjacent $ snd $ adjacent xs
-          in (x' - x) + fillRow xs'
-        adjacent [x] = (x + 1, [])
-        adjacent (x1 : xs@(x2 : _))
-          | x1 + 1 == x2 = adjacent xs
-          | otherwise    = (x1 + 1, xs)
-        adjacent xs = error ("welp, " ++ show xs)
 
+-- Parse the directions for a single line.
 part1, part2 :: String -> (Direction, Int)
 part1 = parseRow . words
   where parseRow [d, n, _] = (read d, read n)
