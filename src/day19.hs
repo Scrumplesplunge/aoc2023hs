@@ -8,6 +8,13 @@ data Action = Accept | Reject | Jump String deriving Show
 type Workflow = (String, [(Cond, Action)])
 data Part a = Part a a a a deriving Show
 
+-- Map one part to another by modifying the value of one category.
+pmap :: Char -> (a -> a) -> Part a -> Part a
+pmap 'x' f (Part x m a s) = Part (f x) m a s
+pmap 'm' f (Part x m a s) = Part x (f m) a s
+pmap 'a' f (Part x m a s) = Part x m (f a) s
+pmap 's' f (Part x m a s) = Part x m a (f s)
+
 int :: Parser Int
 int = foldl' (\n x -> 10 * n + digitToInt x) 0 <$> many1 digit
 
@@ -79,47 +86,24 @@ part1 (ws, ps) = sum $ map score $ filter (check (get "in")) ps
         act Reject p = False
         act (Jump w) p = check (get w) p
 
-data Value = None | Below Int | AtLeast Int | Between Int Int | Any
-  deriving Show
-ne = Between 1 4001
-
-lessThan :: Int -> Value -> Value
-lessThan _  None          = None
-lessThan u' (Below u)     = Below (min u u')
-lessThan u  (AtLeast l)   = if l < u then Between l u else None
-lessThan u' (Between l u) = if l < u' then Between l (min u u') else None
-lessThan u  Any           = Below u
-
-greaterThan :: Int -> Value -> Value
-greaterThan _  None          = None
-greaterThan l  (Below u)     = if l + 1 < u then Between (l + 1) u else None
-greaterThan l' (AtLeast l)   = AtLeast (max l (l' + 1))
-greaterThan l' (Between l u) = if l' + 1 < u then Between (max l (l' + 1)) u else None
-greaterThan l  Any           = AtLeast (l + 1)
-
-pmap :: Char -> (a -> a) -> Part a -> Part a
-pmap 'x' f (Part x m a s) = Part (f x) m a s
-pmap 'm' f (Part x m a s) = Part x (f m) a s
-pmap 'a' f (Part x m a s) = Part x m (f a) s
-pmap 's' f (Part x m a s) = Part x m a (f s)
+type Value = (Int, Int)  -- Inclusive range.
 
 possible :: Part Value -> Bool
-possible (Part None _ _ _) = False
-possible (Part _ None _ _) = False
-possible (Part _ _ None _) = False
-possible (Part _ _ _ None) = False
-possible _ = True
+possible (Part x m a s) = not (any (\(l, u) -> u < l) [x, m, a, s])
 
+-- Splits a value into options that evaluate to false and options that evaluate
+-- to true under the given condition.
 fork :: Cond -> Part Value -> (Part Value, Part Value)
-fork Always p = (Part None None None None, p)
-fork (Lt c n) p = (pmap c (greaterThan (n - 1)) p,
-                   pmap c (lessThan n) p)
-fork (Gt c n) p = (pmap c (lessThan (n + 1)) p,
-                   pmap c (greaterThan n) p)
+fork Always p = (Part (2, 1) (2, 1) (2, 1) (2, 1), p)
+fork (Lt c n) p = (pmap c (\(l, u) -> (max l n, u)) p,        -- c >= n
+                   pmap c (\(l, u) -> (l, min u (n - 1))) p)  -- c < n
+fork (Gt c n) p = (pmap c (\(l, u) -> (l, min u n)) p,        -- c <= n
+                   pmap c (\(l, u) -> (max l (n + 1), u)) p)  -- c > n
 
 -- part2 :: ([Workflow], [Part Int]) -> Int
-part2 (ws, ps) = sum $ map count $ check (get "in") (Part ne ne ne ne)
-  where get w = case lookup w ws of
+part2 (ws, ps) = sum $ map count $ check (get "in") (Part val val val val)
+  where val = (1, 4000)
+        get w = case lookup w ws of
           Nothing -> error "Bad workflow reference"
           Just x -> x
         check :: [(Cond, Action)] -> Part Value -> [Part Value]
@@ -132,15 +116,8 @@ part2 (ws, ps) = sum $ map count $ check (get "in") (Part ne ne ne ne)
         act Accept p = [p]
         act Reject p = []
         act (Jump w) p = check (get w) p
-        count p@(Part x m a s) =
-          if finite x && finite m && finite a && finite s then
-            size x * size m * size a * size s
-          else
-            error ("Infinite part: " ++ show p)
-        finite (Between l u) = True
-        finite _ = False
-        size (Between l u) = u - l
-        size _ = error "Infinite range"
+        count p@(Part x m a s) = size x * size m * size a * size s
+        size (l, u) = max 0 (u - l + 1)
 
 main = do
   input <- parseInput <$> getContents
