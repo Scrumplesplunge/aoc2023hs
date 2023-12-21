@@ -28,7 +28,7 @@ parseInput = Map.fromList . finish . map parseLine . zip [1..] . lines
   where parseLine (n, l) = case parse line ("input:" ++ show n) l of
           Left e -> error (show e)
           Right x -> x
-        finish mods = map (buildState mods) mods
+        finish mods = ("rx", (Rx False, [])) : map (buildState mods) mods
         buildState mods (name, (t, os)) = (name, (state t name mods, os))
         state B _ _ = Broadcaster
         state F _ _ = FlipFlop False
@@ -45,11 +45,6 @@ pulse (from, value) c@(Conjunction mem) =
 pulse (from, False) (Rx _) = (Rx True, [])
 pulse (from, True) r@(Rx _) = (r, [])
 
-mustGet :: (Ord k, Show k, Show v) => Map k v -> k -> v
-mustGet m k = case m !? k of
-  Just v -> v
-  Nothing -> error ("Couldn't find " ++ show k ++ " in:\n" ++ show m)
-
 part1 :: Map ModuleName (Module, [ModuleName]) -> Int
 part1 mods = score (iterate button (0, 0, initial) !! 1000)
   where initial = Map.map fst mods
@@ -57,17 +52,12 @@ part1 mods = score (iterate button (0, 0, initial) !! 1000)
             -> (Int, Int, Map ModuleName Module)
             -> (Int, Int, Map ModuleName Module)
         run Seq.Empty out = out
-        run ((from, here, value) :<| ps) (l, h, state)
-          | not (here `Map.member` mods) = if value then
-                                             run ps (l, h + 1, state)
-                                           else
-                                             run ps (l + 1, h, state)
         run ((from, here, value) :<| ps) (l, h, state) =
           let (l', h') = if value then (l, h + 1) else (l + 1, h)
-              (mod, newPulses) = pulse (from, value) (state `mustGet` here)
+              (mod, newPulses) = pulse (from, value) (state ! here)
               state' = Map.insert here mod state
               sent = [(here, to, value) | value <- newPulses,
-                                          to <- snd (mods `mustGet` here) ]
+                                          to <- snd (mods ! here) ]
           in run (ps >< Seq.fromList sent) (l', h', state')
         button :: (Int, Int, Map ModuleName Module)
                -> (Int, Int, Map ModuleName Module)
@@ -101,10 +91,10 @@ part2 mods = foldl1' lcm (map count forks)
             -> Map ModuleName Module
         run Seq.Empty out = out
         run ((from, here, value) :<| ps) state =
-          let (mod, newPulses) = pulse (from, value) (state `mustGet` here)
+          let (mod, newPulses) = pulse (from, value) (state ! here)
               state' = Map.insert here mod state
               sent = [(here, to, value) | value <- newPulses,
-                                          to <- snd (mods `mustGet` here) ]
+                                          to <- snd (mods ! here) ]
           in run (ps >< Seq.fromList sent) state'
 
 main = do
