@@ -8,74 +8,25 @@ parse input = array ((1, 1), (w, h)) [((x, y), c) | (y, l) <- zip [1..] ls,
   where ls = lines input
         (w, h) = (length (head ls), length ls)
 
-part1 :: Array (Int, Int) Char -> Int
-part1 grid = countTrue $ head $ drop 12 $ iterate next (fmap (== 'S') grid)
+next :: Array (Int, Int) Char -> Array (Int, Int) Bool -> Array (Int, Int) Bool
+next grid cells = empty // map (\i -> (i, True)) neighbours
   where empty = fmap (const False) grid
-        countTrue cells = length [1 | True <- elems cells]
-        next :: Array (Int, Int) Bool -> Array (Int, Int) Bool
-        next cells = empty // map (\i -> (i, True)) neighbours
-          where neighbours = do
-                  ((x, y), True) <- assocs cells
-                  n <- [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-                  if inRange (bounds grid) n && grid ! n /= '#' then
-                    return n
-                  else
-                    []
+        neighbours = do
+          ((x, y), True) <- assocs cells
+          n <- [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+          if inRange (bounds grid) n && grid ! n /= '#' then
+            return n
+          else
+            []
 
--- part2 :: Array (Int, Int) Char -> Int
---
--- ..O.. O.S.O O.... ..... ....O S.O.O O.O.S ....O O....
--- .O.O. .O.O. .O... ..... ...O. .O.O. .O.O. ...O. .O...
--- O.S.O ..O.. S.O.. ..O.. ..O.S O.O.. ..O.O ..O.O O.O..
--- .O.O. ..... .O... .O.O. ...O. .O... ...O. .O.O. .O.O.
--- ..O.. ..... O.... O.S.O ....O O.... ....O O.O.S S.O.O
---
--- Step 65 forms a perfect diamond touching the middle of all four sides.
--- Step 66 enters four adjacent grids in the center of the corresponding edge.
--- Step 130 touches all four corners of the origin tile for the first time.
--- Step 131 enters the four diagonally adjacent grids at their corners.
---
---       ..... ..O.. .....
---       ..... .O.O. .....
---       ..... O...O .....
---       ....O ..... O....
---       ...O. ..... .O...
---
---       ..O.. .O.O. ..O..
---       .O... O.O.O ...O.
---       O.... .O.O. ....O
---       ..... O.O.O .....
---       ..... .O.O. .....
---
--- ..O..       O.O.O       ..O..
--- .O...       .O.O.       ...O.
--- O....       O.O.O       ....O
--- .O...       .O.O.       ...O.
--- ..O..       O.O.O       ..O..
---
--- ...O. .....       ..... .O...
--- ....O .....       ..... O....
--- ..... O....       ....O .....
--- ..... .O...       ...O. .....
--- ..... ..O..       ..O.. .....
---
---             .....
---             .....
---             O...O
---             .O.O.
---             ..O..
---
--- The final state will consist of:
---
---   * Two types of full squares (alternating parity)
---   * Four points
---   * Eight types of diagonal.
+countTrue :: Array (Int, Int) Bool -> Int
+countTrue cells = length [1 | True <- elems cells]
 
--- 628203198597421 too low
--- 628206310652633 too low
--- 628206330073385 right answer
+part1 :: Array (Int, Int) Char -> Int
+part1 grid = countTrue $ iterate (next grid) (fmap (== 'S') grid) !! 64
+
 part2 grid = total
-  where grids start = iterate next $ empty // [(start, True)]
+  where grids start = iterate (next grid) $ empty // [(start, True)]
         (_, (size, _)) = bounds grid
         mid = size `div` 2 + 1
         full        = drop size $ grids (mid, mid)
@@ -119,13 +70,6 @@ part2 grid = total
         fullB = full !! ((n - size + 1) `mod` 2)
         numFullA = (i `div` 2 * 2 + 1)^2
         numFullB = ((i + 1) `div` 2 * 2)^2
-        -- Assemble the lot.
-        edges = [
-          ("fullA",     fullA),
-          ("topRightA", topRight !! slopeA),
-          ("fullB",     fullB),
-          ("topRightB", topRight !! slopeB),
-          ("top",       top      !! point)]
         slopes = [topLeft, topRight, bottomLeft, bottomRight]
         points = [left, right, top, bottom]
         total = numFullA * countTrue fullA +
@@ -133,27 +77,7 @@ part2 grid = total
                 numA * sum [countTrue (g !! slopeA) | g <- slopes] +
                 numB * sum [countTrue (g !! slopeB) | g <- slopes] +
                 sum [countTrue (g !! point) | g <- points]
-        range = bounds grid
         empty = fmap (const False) grid
-        s = head [(x, y) | ((x, y), 'S') <- assocs grid]
-        countTrue cells = length [1 | True <- elems cells]
-        next :: Array (Int, Int) Bool -> Array (Int, Int) Bool
-        next cells = empty // map (\i -> (i, True)) neighbours
-          where neighbours = do
-                  ((x, y), True) <- assocs cells
-                  n <- [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-                  if inRange range n && grid ! n /= '#' then
-                    return n
-                  else
-                    []
-        assemble c = array (bounds grid) $
-                       map (\(i, x) -> if x then (i, 'O') else (i, grid ! i))
-                       (assocs c)
-        debug (i, c) =
-          let g = assemble c
-          in show i ++ " steps: " ++ show (countTrue c) ++ " cells\n" ++
-             unlines [[g ! (x, y) | x <- [1..w]] | y <- [1..h]] ++ "\n"
-        (_, (w, h)) = bounds grid
 
 main = do
   input <- parse <$> getContents
