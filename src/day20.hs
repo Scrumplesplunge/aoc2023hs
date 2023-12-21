@@ -74,19 +74,28 @@ part1 mods = score (iterate button (0, 0, initial) !! 1000)
         button = run (Seq.fromList [("button", "broadcaster", False)])
         score (l, h, state) = l * h
 
--- TODO: Write code that actually works for this problem. I solved it manually
--- by inspection: there were four large cyclic clusters in my graph of modules
--- which each fed into a Conjunction with one input (i.e. a NOT gate) and then
--- into a second Conjunction which merged the four inputs. I modified my input
--- to only include a single cycle which fed into RX (skipping the NOT and the
--- NAND) to get a cycle count, repeated that for each of the remaining three
--- cycles, and then took the Least Common Multiple of the four cycle counts to
--- find the overall answer for the problem.
+-- There are four large cyclic clusters in my graph of modules which each feed
+-- into a Conjunction with one input (i.e. a NOT gate) and then into a second
+-- Conjunction which merged the outputs. Each of the large clusters has a cycle
+-- with a different period n and will emit a low pulse for every nth button
+-- press. RX will receive a pulse when all four emit this low pulse at the same
+-- time, which can be found with the least common multiple.
 part2 :: Map ModuleName (Module, [ModuleName]) -> Int
-part2 mods = 0  -- length $ takeWhile (not . done) $ iterate button initial
-  where initial = Map.insert "rx" (Rx False) $ Map.map fst mods
-        done :: Map ModuleName Module -> Bool
-        done state = state ! "rx" == Rx True
+part2 mods = foldl1' lcm (map count forks)
+  where inputs m = [n | (n, (_, os)) <- Map.assocs mods, m `elem` os]
+        -- The list of nodes receiving messages from the broadcaster.
+        forks = snd (mods ! "broadcaster")
+        -- The list of nodes feeding into the conjunction right before rx.
+        joins = inputs end
+        [end] = inputs "rx"
+        stubs = Map.fromList [(j, Rx False) | j <- joins]
+        -- The cycle counts required for each fork to produce a False signal.
+        count start = length $ takeWhile (not . done) $ iterate button initial
+          where initial :: Map ModuleName Module
+                initial = stubs `Map.union` Map.map fst mods
+                done :: Map ModuleName Module -> Bool
+                done s = or [s ! j == Rx True | j <- joins]
+                button = run (Seq.fromList [("broadcaster", start, False)])
         run :: Seq (ModuleName, ModuleName, Bool)
             -> Map ModuleName Module
             -> Map ModuleName Module
@@ -97,8 +106,6 @@ part2 mods = 0  -- length $ takeWhile (not . done) $ iterate button initial
               sent = [(here, to, value) | value <- newPulses,
                                           to <- snd (mods `mustGet` here) ]
           in run (ps >< Seq.fromList sent) state'
-        button :: Map ModuleName Module -> Map ModuleName Module
-        button = run (Seq.fromList [("button", "broadcaster", False)])
 
 main = do
   input <- parseInput <$> getContents
