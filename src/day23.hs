@@ -6,6 +6,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 type Grid a = Array (Int, Int) a
+type Node = (Int, Int)
 
 parse :: String -> Grid Char
 parse input = array ((1, 1), (w, h)) [((x, y), c) | (y, l) <- zip [1..] ls,
@@ -13,11 +14,9 @@ parse input = array ((1, 1), (w, h)) [((x, y), c) | (y, l) <- zip [1..] ls,
   where ls = lines input
         (w, h) = (length (head ls), length ls)
 
-type Node = (Int, Int)
-type S a = State (Set Node, [(Node, Node, Int)]) a
-
 -- Convert the grid into a graph representing path lengths between nodes with
 -- more than two connected edges.
+type S a = State (Set Node, [(Node, Node, Int)]) a
 graphify :: (Grid Char -> (Int, Int) -> [(Int, Int)])
          -> Grid Char -> (Node, Node, [(Node, Node, Int)])
 graphify next grid = (start, end, edges)
@@ -49,8 +48,8 @@ graphify next grid = (start, end, edges)
               modify (\(s, es) -> (s, (from, pos, n) : es))
               exploreNode pos
 
-solveGraph :: Node -> Node -> [(Node, Node, Int)] -> Int
-solveGraph start end edges = case longest start end edges of
+solve :: (Node, Node, [(Node, Node, Int)]) -> Int
+solve (start, end, edges) = case longest start end edges of
     Nothing -> error "IMPOSSIBLE"
     Just x -> x
   where longest :: Node -> Node -> [(Node, Node, Int)] -> Maybe Int
@@ -74,10 +73,6 @@ solveGraph start end edges = case longest start end edges of
         maximum' [] = Nothing
         maximum' xs = Just $ maximum xs
 
-solve :: (Grid Char -> (Int, Int) -> [(Int, Int)]) -> Grid Char -> Int
-solve next input = solveGraph start end edges
-  where (start, end, edges) = graphify next input
-
 part1 :: Grid Char -> (Int, Int) -> [(Int, Int)]
 part1 grid pos@(x, y) = case grid ! pos of
     '^' -> [up]
@@ -95,5 +90,5 @@ part2 grid pos@(x, y) = [up, down, left, right]
 
 main = do
   input <- parse <$> getContents
-  putStrLn $ show $ solve part1 input
-  putStrLn $ show $ solve part2 input
+  putStrLn $ show $ solve $ graphify part1 input
+  putStrLn $ show $ solve $ graphify part2 input
