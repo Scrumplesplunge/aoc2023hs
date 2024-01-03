@@ -1,7 +1,7 @@
 import Data.Function
 import Data.List
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map.Strict (Map, (!))
+import qualified Data.Map.Strict as Map
 import Data.Tuple
 
 parse :: String -> [(String, String)]
@@ -14,30 +14,28 @@ parse = concatMap edges . lines
           return (a, b)
 
 type Node = Int
-type Edge = (Node, Node, Int)
-type Graph = ([(Node, Int)], [Edge])
+type Edges = Map Node (Map Node Int)
+type Graph = ([(Node, Int)], Edges)
 rejig :: [(String, String)] -> Graph
 rejig edges = (vs, es)
   where nodes [] = []
         nodes ((a, b) : es) = (a, ()) : (b, ()) : nodes es
         ns = Map.fromList (nodes edges)
         vs = [(i, 1) | i <- [1..length ns]]
-        es = [(Map.findIndex a ns, Map.findIndex b ns, 1) | (a, b) <- edges]
+        es' = [(Map.findIndex a ns, Map.findIndex b ns) | (a, b) <- edges]
+        es'' = groupBy ((==) `on` fst) $ sort (es' ++ map swap es')
+        entry ((k, v) : kvs) =
+          (k, Map.fromList [(x, 1) | x <- (v : map snd kvs)])
+        es = Map.fromList (map entry es'')
 
--- Merge two nodes in an edge list, discarding self-connections.
-mergeEdges :: Node -> Node -> [Edge] -> [Edge]
-mergeEdges a b = go Map.empty
-  where go ms [] = [(a, c, k) | (c, k) <- Map.assocs ms]
-        go ms (e@(p, q, k) : es) = case (rewrite p, rewrite q) of
-          (p', q') | p' == a && q' == a -> go ms es
-                   | p' == a            -> go (count q' k ms) es
-                   | q' == a            -> go (count p' k ms) es
-                   | otherwise          -> e : go ms es
-        rewrite x | x == b = a
-        rewrite x = x
-        count k v m = Map.alter (inc v) k m
-        inc k Nothing = Just k
-        inc k (Just k') = Just (k + k')
+-- Merge two nodes in an edge list.
+mergeEdges :: Node -> Node -> Map Node (Map Node Int) -> Map Node (Map Node Int)
+mergeEdges a b es = edits `Map.union` Map.delete b es
+  where as = es ! a
+        bs = es ! b
+        a' = Map.delete a $ Map.delete b $ Map.unionWith (+) as bs
+        fix n _ = Map.insert a (a' ! n) $ Map.delete b $ es ! n
+        edits = Map.insert a a' $ Map.mapWithKey fix a'
 
 -- Merge nodes in a vertex list.
 mergeVertices :: Node -> Node -> [(Node, Int)] -> [(Node, Int)]
@@ -51,24 +49,22 @@ mergeNodes :: Node -> Node -> Graph -> Graph
 mergeNodes a b (vs, es) = (mergeVertices a b vs, mergeEdges a b es)
 
 -- Identify a minimum s-t cut. Returns (s, t, n) where n is the cut.
-minCutPhase :: [Edge] -> (Node, Node, Int)
+minCutPhase :: Edges -> (Node, Node, Int)
 minCutPhase es = go 0 es
-  where go :: Node -> [(Node, Node, Int)] -> (Node, Node, Int)
-        go s [] = error ":("
-        go s [(0, t, n)] = (s, t, n)
-        go s [(t, 0, n)] = (s, t, n)
+  where go :: Node -> Edges -> (Node, Node, Int)
+        go s es | Map.null es = error ":("
+        go s es | length es == 2 =
+          case Map.assocs (es ! 0) of
+            [(t, n)] -> (s, t, n)
         go _ es = go t (mergeEdges 0 t es)
-          where cs = [e | e@(a, b, _) <- es, a == 0 || b == 0]
-                (a, b, _) = maximumBy (compare `on` weight) cs
-                weight (_, _, w) = w
-                t = if min a b == 0 then max a b else error ":("
+          where (t, _) = maximumBy (compare `on` snd) $ Map.assocs (es ! 0)
 
 -- Identify the minimum cut. Returns (n, k) where n is the cut and k is the size
 -- of one side.
 minCut :: Graph -> (Int, Int)
 minCut g = go (10000, 0) g
   where go :: (Int, Int) -> Graph -> (Int, Int)
-        go best (_, []) = best
+        go best (_, es) | Map.size es == 1 = best
         go (n, k) g@(_, es) =
           let (s, t, n') = minCutPhase es
               v = case lookup t (fst g) of
