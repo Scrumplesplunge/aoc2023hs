@@ -1,14 +1,7 @@
-import Debug.Trace
-import Control.Monad.ST
 import Data.Function
-import Data.Array
-import Data.Array.ST
-import Data.Array.MArray
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Tuple
 
 parse :: String -> [(String, String)]
@@ -31,7 +24,7 @@ rejig edges = (vs, es)
         vs = [(i, 1) | i <- [1..length ns]]
         es = [(Map.findIndex a ns, Map.findIndex b ns, 1) | (a, b) <- edges]
 
--- Merge two nodes in an edge list, discarding self-connections. O(E).
+-- Merge two nodes in an edge list, discarding self-connections.
 mergeEdges :: Node -> Node -> [Edge] -> [Edge]
 mergeEdges a b = go Map.empty
   where go ms [] = [(a, c, k) | (c, k) <- Map.assocs ms]
@@ -59,16 +52,12 @@ mergeNodes a b (vs, es) = (mergeVertices a b vs, mergeEdges a b es)
 
 -- Identify a minimum s-t cut. Returns (s, t, n) where n is the cut.
 minCutPhase :: [Edge] -> (Node, Node, Int)
-minCutPhase es = --trace ("minCutPhase " ++ show es) $
-                 go 0 es
+minCutPhase es = go 0 es
   where go :: Node -> [(Node, Node, Int)] -> (Node, Node, Int)
         go s [] = error ":("
-        go s [(0, t, n)] = --traceShowId
-                           (s, t, n)
-        go s [(t, 0, n)] = --traceShowId
-                           (s, t, n)
-        go _ es = --trace ("go " ++ show es ++ " -> merge " ++ show a ++ " " ++ show b) $
-                  go t (mergeEdges 0 t es)
+        go s [(0, t, n)] = (s, t, n)
+        go s [(t, 0, n)] = (s, t, n)
+        go _ es = go t (mergeEdges 0 t es)
           where cs = [e | e@(a, b, _) <- es, a == 0 || b == 0]
                 (a, b, _) = maximumBy (compare `on` weight) cs
                 weight (_, _, w) = w
@@ -87,33 +76,12 @@ minCut g = go (10000, 0) g
                 Just v -> v
               best' = if n' < n then (n', v) else (n, k)
               g' = mergeNodes s t g
-          in if n' < n then
-               trace (show (length (fst g)) ++ ": new best: " ++ show best') $
-               go best' g'
-             else
-               trace (show (length (fst g)) ++ ": not best: " ++ show (n', v - 1)) $
-               go best' g'
+          in go best' g'
 
 part1 :: Graph -> Int
-part1 g = let (3, k) = --traceShowId $
-                       minCut g in k * (n - k)
+part1 g = let (3, k) = minCut g in k * (n - k)
   where n = length (fst g)
 
 main = do
   input <- rejig <$> parse <$> getContents
-  -- let v = (maximum [max a b | (a, b) <- input] + 1) :: Int
-  --     e = length input
-  -- putStrLn $ show (v, e)
   putStrLn $ show $ part1 input
-
--- adjacency :: [(Node, Node)] -> Array (Node, Node) Int
--- adjacency edges = runST run
---   where v = (maximum [max a b | (a, b) <- edges]) :: Int
---         run = do
---           m <- newArray ((0, 0), (v, v)) 0
---           mapM (addEdge m) edges
---           freeze m
---         addEdge :: STArray s (Node, Node) Int -> (Node, Node) -> ST s ()
---         addEdge m (a, b) = do
---           writeArray m (a, b) 1
---           writeArray m (b, a) 1
